@@ -2,53 +2,86 @@ const COMMON = ['Vitamin D3', 'Vitamin B12', 'Omega-3', 'Magnesium', 'Iron', 'Zi
 const PALETTES = [{ bg: '#f6d1c0', icon: '☀' }, { bg: '#ded8f5', icon: '✦' }, { bg: '#d9ec9c', icon: '◒' }, { bg: '#f7e7a0', icon: '●' }, { bg: '#cce8e4', icon: '♥' }];
 const storageKey = 'daily-dose-data-v1';
 let data = JSON.parse(localStorage.getItem(storageKey) || '{"supplements":[],"history":{}}');
-let selectedColor = 0, notified = {};
-const $ = s => document.querySelector(s), todayKey = () => new Date().toISOString().slice(0, 10);
+let selectedColor = 0, notified = {}, selectedHistoryDate = localDateKey();
+const $ = selector => document.querySelector(selector);
+
+function localDateKey(date = new Date()) { const offset = date.getTimezoneOffset() * 60000; return new Date(date.getTime() - offset).toISOString().slice(0, 10); }
+function formatDate(date = new Date()) { return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(date).toUpperCase(); }
+function formatDateKey(key) { return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric' }).format(new Date(`${key}T12:00:00`)); }
+function greeting() { const hour = new Date().getHours(); return hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'; }
+function minutes(time) { const [hour, minute] = time.split(':').map(Number); return hour * 60 + minute; }
+function prettyTime(time) { return new Date(`2000-01-01T${time}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
+function palette(supplement) { return PALETTES[Number.isInteger(supplement.color) && PALETTES[supplement.color] ? supplement.color : 0]; }
+function isTaken(id, date = localDateKey()) { return data.history[date]?.includes(id) || false; }
 function save() { localStorage.setItem(storageKey, JSON.stringify(data)); render(); syncNativeReminders(); }
-function dateLabel() { return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date()).toUpperCase() }
-function minutes(time) { let [h, m] = time.split(':').map(Number); return h * 60 + m }
-function prettyTime(time) { return new Date(`2000-01-01T${time}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) }
-function status(id, date = todayKey()) { return data.history[date]?.includes(id) }
-function toggle(id) { let d = todayKey(); data.history[d] ??= []; data.history[d] = status(id, d) ? data.history[d].filter(x => x !== id) : [...data.history[d], id]; save() }
-function getWeek() { return [...Array(7)].map((_, i) => { let d = new Date(); d.setDate(d.getDate() - 6 + i); return d.toISOString().slice(0, 10) }) }
-function streak() { let n = 0, d = new Date(); while (true) { let k = d.toISOString().slice(0, 10), total = data.supplements.length; if (!total || !data.history[k] || data.history[k].length < total) break; n++; d.setDate(d.getDate() - 1) } return n }
+function toggleDose(id, date = localDateKey()) { data.history[date] ??= []; data.history[date] = isTaken(id, date) ? data.history[date].filter(item => item !== id) : [...data.history[date], id]; save(); }
+function scheduleList() { return [...data.supplements].sort((a, b) => minutes(a.time) - minutes(b.time)); }
+function weekDates() { return [...Array(7)].map((_, index) => { const date = new Date(); date.setDate(date.getDate() - 6 + index); return localDateKey(date); }); }
+function streak() { let days = 0, date = new Date(); while (data.supplements.length) { const key = localDateKey(date); if (!data.supplements.every(supplement => isTaken(supplement.id, key))) break; days++; date.setDate(date.getDate() - 1); } return days; }
+function escapeHtml(value = '') { return String(value).replace(/[&<>"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[character])); }
+
 function render() {
-  $('#todayLabel').textContent = dateLabel(); let list = [...data.supplements].sort((a, b) => minutes(a.time) - minutes(b.time)); let complete = list.filter(s => status(s.id)).length, total = list.length;
-  $('#progressText').textContent = `${complete}/${total}`; $('#progressRing').style.background = `conic-gradient(var(--green) ${(total ? complete / total : 0) * 360}deg,#e4e7df 0deg)`;
-  $('#dailyMessage').textContent = total ? (complete === total ? 'Beautifully done for today.' : 'You have ' + (total - complete) + ' dose' + (total - complete === 1 ? '' : 's') + ' left today.') : 'Let’s make today a healthy one.';
-  $('#todayList').innerHTML = list.map(s => `<article class="dose-card ${status(s.id) ? 'done' : ''}"><div class="supp-icon" style="background:${PALETTES[s.color].bg}">${PALETTES[s.color].icon}</div><div><div class="supp-name">${escapeHtml(s.name)}</div><div class="supp-meta">${escapeHtml(s.dose || 'Daily dose')} · ${prettyTime(s.time)}</div></div><button class="check ${status(s.id) ? 'done' : ''}" data-check="${s.id}" aria-label="Mark ${escapeHtml(s.name)} as taken">✓</button></article>`).join('');
-  $('#emptyToday').classList.toggle('hidden', !!total); $('#todayList').classList.toggle('hidden', !total);
-  let days = getWeek(), possible = total * 7, taken = days.reduce((n, d) => n + (data.history[d]?.filter(id => data.supplements.some(s => s.id === id)).length || 0), 0), rate = possible ? Math.round(taken / possible * 100) : 0;
-  $('#weekRate').textContent = rate + '%'; $('#weekSummary').textContent = total ? `${taken} of ${possible} planned doses taken this week.` : 'Add a supplement to start tracking.';
-  $('#weekBars').innerHTML = days.map(d => { let c = data.history[d]?.length || 0, p = total ? Math.min(1, c / total) : 0; return `<i style="--height:${Math.max(7, p * 38)}px;--opacity:${.25 + p * .75}" title="${d}"></i>` }).join('');
+  const list = scheduleList(), complete = list.filter(supplement => isTaken(supplement.id)).length, total = list.length;
+  $('#todayLabel').textContent = formatDate();
+  $('#greeting').innerHTML = `${greeting()}<span class="period">.</span>`;
+  $('#progressText').textContent = `${complete}/${total}`;
+  $('#progressRing').style.background = `conic-gradient(var(--green) ${(total ? complete / total : 0) * 360}deg,#e4e7df 0deg)`;
+  $('#dailyMessage').textContent = total ? (complete === total ? 'Beautifully done for today.' : `You have ${total - complete} dose${total - complete === 1 ? '' : 's'} left today.`) : 'Let’s make today a healthy one.';
+  $('#todayList').innerHTML = list.map(supplement => {
+    const taken = isTaken(supplement.id), style = palette(supplement);
+    return `<article class="dose-card ${taken ? 'done' : ''}"><div class="supp-icon" style="background:${style.bg}">${style.icon}</div><div><div class="supp-name">${escapeHtml(supplement.name)}</div><div class="supp-meta">${escapeHtml(supplement.dose || 'Daily dose')} · ${prettyTime(supplement.time)}</div></div><button class="check ${taken ? 'done' : ''}" data-check="${supplement.id}" aria-label="Mark ${escapeHtml(supplement.name)} as taken">✓</button></article>`;
+  }).join('');
+  $('#emptyToday').classList.toggle('hidden', Boolean(total)); $('#todayList').classList.toggle('hidden', !total);
+
+  const days = weekDates(), possible = total * days.length;
+  const takenThisWeek = days.reduce((count, date) => count + data.supplements.filter(supplement => isTaken(supplement.id, date)).length, 0);
+  const rate = possible ? Math.round(takenThisWeek / possible * 100) : 0;
+  $('#weekRate').textContent = `${rate}%`; $('#weekSummary').textContent = total ? `${takenThisWeek} of ${possible} planned doses taken this week.` : 'Add a supplement to start tracking.';
+  $('#weekBars').innerHTML = days.map(date => { const count = data.supplements.filter(supplement => isTaken(supplement.id, date)).length, progress = total ? count / total : 0; return `<i style="--height:${Math.max(7, progress * 38)}px;--opacity:${.25 + progress * .75}" title="${date}"></i>`; }).join('');
   $('#takenStat').textContent = complete; $('#streakStat').textContent = streak();
-  $('#activityList').innerHTML = total ? list.map(s => `<article class="activity-card"><div><strong>${escapeHtml(s.name)}</strong><br><span>${prettyTime(s.time)} · ${status(s.id) ? 'Taken today' : 'Not yet taken'}</span></div><span>${status(s.id) ? '✓' : '—'}</span></article>`).join('') : '<div class="empty-state"><p>Your supplement activity will appear here.</p></div>';
-  $('#routineList').innerHTML = total ? list.map(s => `<article class="routine-card" data-edit="${s.id}"><div class="supp-icon" style="background:${PALETTES[s.color].bg}">${PALETTES[s.color].icon}</div><div class="routine-info"><div class="supp-name">${escapeHtml(s.name)}</div><div class="supp-meta">${escapeHtml(s.dose || 'Daily dose')} · ${prettyTime(s.time)}${s.enabled ? '' : ' · Paused'}</div></div><span class="chevron">›</span></article>`).join('') : '<div class="empty-state"><p>No supplements added yet.</p></div>';
-  document.querySelectorAll('[data-check]').forEach(b => b.onclick = () => toggle(b.dataset.check)); document.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => openForm(data.supplements.find(s => s.id === b.dataset.edit)));
+  $('#activityList').innerHTML = total ? list.map(supplement => `<article class="activity-card"><div><strong>${escapeHtml(supplement.name)}</strong><br><span>${prettyTime(supplement.time)} · ${isTaken(supplement.id) ? 'Taken today' : 'Not yet taken'}</span></div><span>${isTaken(supplement.id) ? '✓' : '—'}</span></article>`).join('') : '<div class="empty-state"><p>Your supplement activity will appear here.</p></div>';
+  renderHistory(list);
+  $('#routineList').innerHTML = total ? list.map(supplement => { const style = palette(supplement); return `<article class="routine-card" data-edit="${supplement.id}"><div class="supp-icon" style="background:${style.bg}">${style.icon}</div><div class="routine-info"><div class="supp-name">${escapeHtml(supplement.name)}</div><div class="supp-meta">${escapeHtml(supplement.dose || 'Daily dose')} · ${prettyTime(supplement.time)}${supplement.enabled ? '' : ' · Paused'}</div></div><span class="chevron">›</span></article>`; }).join('') : '<div class="empty-state"><p>No supplements added yet.</p></div>';
+  document.querySelectorAll('[data-check]').forEach(button => button.onclick = () => toggleDose(button.dataset.check));
+  document.querySelectorAll('[data-history-check]').forEach(button => button.onclick = () => toggleDose(button.dataset.historyCheck, selectedHistoryDate));
+  document.querySelectorAll('[data-edit]').forEach(button => button.onclick = () => openForm(data.supplements.find(supplement => supplement.id === button.dataset.edit)));
 }
-function escapeHtml(t) { return t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])) }
-function openForm(s) { let editing = !!s; $('#formTitle').textContent = editing ? 'Edit supplement' : 'Add supplement'; $('#formEyebrow').textContent = editing ? 'YOUR ROUTINE' : 'NEW REMINDER'; $('#supplementName').value = s?.name || ''; $('#supplementDose').value = s?.dose || ''; $('#supplementTime').value = s?.time || '08:00'; $('#reminderEnabled').checked = s?.enabled ?? true; $('#editingId').value = s?.id || ''; selectedColor = s?.color || 0; $('#deleteSupplement').classList.toggle('hidden', !editing); renderFormChoices(); $('#supplementDialog').showModal() }
-function renderFormChoices() { $('#commonChips').innerHTML = COMMON.map(n => `<button type="button" class="chip" data-name="${n}">${n}</button>`).join(''); $('#colorChoices').innerHTML = PALETTES.map((p, i) => `<button type="button" class="color-dot ${i === selectedColor ? 'selected' : ''}" style="background:${p.bg}" data-color="${i}"></button>`).join(''); document.querySelectorAll('[data-name]').forEach(b => b.onclick = () => { $('#supplementName').value = b.dataset.name }); document.querySelectorAll('[data-color]').forEach(b => b.onclick = () => { selectedColor = +b.dataset.color; renderFormChoices() }) }
-$('#supplementForm').addEventListener('submit', e => { e.preventDefault(); let id = $('#editingId').value, entry = { id: id || crypto.randomUUID(), name: $('#supplementName').value.trim(), dose: $('#supplementDose').value.trim(), time: $('#supplementTime').value, color: selectedColor, enabled: $('#reminderEnabled').checked }; if (!entry.name) return; if (id) data.supplements = data.supplements.map(s => s.id === id ? entry : s); else data.supplements.push(entry); $('#supplementDialog').close(); save() });
-$('#deleteSupplement').onclick = () => { let id = $('#editingId').value; data.supplements = data.supplements.filter(s => s.id !== id); Object.keys(data.history).forEach(d => data.history[d] = data.history[d].filter(x => x !== id)); $('#supplementDialog').close(); save() };
+
+function renderHistory(list) {
+  const dateInput = $('#historyDate'); dateInput.max = localDateKey(); dateInput.value = selectedHistoryDate;
+  const completed = list.filter(supplement => isTaken(supplement.id, selectedHistoryDate)).length;
+  const missed = list.length - completed;
+  $('#historySummary').textContent = list.length ? `${formatDateKey(selectedHistoryDate)} · ${completed} taken · ${missed} missed` : 'Add a supplement to start reviewing dose history.';
+  $('#historyList').innerHTML = list.map(supplement => {
+    const taken = isTaken(supplement.id, selectedHistoryDate), style = palette(supplement);
+    return `<article class="activity-card history-card"><div><strong>${escapeHtml(supplement.name)}</strong><br><span>${prettyTime(supplement.time)} · <b class="${taken ? 'status-taken' : 'status-missed'}">${taken ? 'Taken' : 'Missed'}</b></span></div><button class="history-check ${taken ? '' : 'missed'}" data-history-check="${supplement.id}">${taken ? 'Mark missed' : 'Mark taken'}</button></article>`;
+  }).join('');
+}
+
+function openForm(supplement) {
+  const editing = Boolean(supplement); $('#formTitle').textContent = editing ? 'Edit supplement' : 'Add supplement'; $('#formEyebrow').textContent = editing ? 'YOUR ROUTINE' : 'NEW REMINDER';
+  $('#supplementName').value = supplement?.name || ''; $('#supplementDose').value = supplement?.dose || ''; $('#supplementTime').value = supplement?.time || '08:00'; $('#reminderEnabled').checked = supplement?.enabled ?? true; $('#editingId').value = supplement?.id || '';
+  selectedColor = Number.isInteger(supplement?.color) ? supplement.color : 0; $('#deleteSupplement').classList.toggle('hidden', !editing); renderFormChoices(); $('#supplementDialog').showModal();
+}
+function renderFormChoices() {
+  $('#commonChips').innerHTML = COMMON.map(name => `<button type="button" class="chip" data-name="${name}">${name}</button>`).join('');
+  $('#colorChoices').innerHTML = PALETTES.map((color, index) => `<button type="button" class="color-dot ${index === selectedColor ? 'selected' : ''}" style="background:${color.bg}" data-color="${index}" aria-label="Choose colour ${index + 1}" aria-pressed="${index === selectedColor}"></button>`).join('');
+  document.querySelectorAll('[data-name]').forEach(button => button.onclick = () => { $('#supplementName').value = button.dataset.name; });
+  document.querySelectorAll('[data-color]').forEach(button => button.onclick = event => { event.preventDefault(); selectedColor = Number(button.dataset.color); renderFormChoices(); });
+}
+
+$('#supplementForm').addEventListener('submit', event => {
+  event.preventDefault(); const id = $('#editingId').value, existing = data.supplements.find(supplement => supplement.id === id);
+  const entry = { id: id || crypto.randomUUID(), name: $('#supplementName').value.trim(), dose: $('#supplementDose').value.trim(), time: $('#supplementTime').value, color: selectedColor, enabled: $('#reminderEnabled').checked, createdAt: existing?.createdAt || localDateKey() };
+  if (!entry.name) return; if (id) data.supplements = data.supplements.map(supplement => supplement.id === id ? entry : supplement); else data.supplements.push(entry); $('#supplementDialog').close(); save();
+});
+$('#deleteSupplement').onclick = () => { const id = $('#editingId').value; data.supplements = data.supplements.filter(supplement => supplement.id !== id); Object.keys(data.history).forEach(date => data.history[date] = data.history[date].filter(item => item !== id)); $('#supplementDialog').close(); save(); };
 ['quickAddButton', 'emptyAddButton', 'routineAddButton'].forEach(id => $('#' + id).onclick = () => openForm());
-document.querySelectorAll('.tab').forEach(b => b.onclick = () => { document.querySelectorAll('.tab,.view').forEach(x => x.classList.remove('active')); b.classList.add('active'); $('#' + b.dataset.tab).classList.add('active') });
+$('#historyDate').onchange = event => { if (event.target.value && event.target.value <= localDateKey()) { selectedHistoryDate = event.target.value; render(); } };
+document.querySelectorAll('.tab').forEach(button => button.onclick = () => { document.querySelectorAll('.tab,.view').forEach(element => element.classList.remove('active')); button.classList.add('active'); $('#' + button.dataset.tab).classList.add('active'); });
 $('#settingsButton').onclick = () => $('#settingsDialog').showModal(); $('#notificationButton').onclick = enableNotifications;
-async function enableNotifications() {
-  const nativePlugin = window.Capacitor?.Plugins?.LocalNotifications;
-  if (nativePlugin) { const result = await nativePlugin.requestPermissions(); $('#notificationButton').textContent = result.display === 'granted' ? 'Notifications enabled' : 'Notifications unavailable'; if (result.display === 'granted') syncNativeReminders(); return }
-  if (!('Notification' in window)) return; let r = await Notification.requestPermission(); $('#notificationButton').textContent = r === 'granted' ? 'Notifications enabled' : 'Notifications unavailable'
-}
-function nativeNotificationId(s) { return s.notificationId || [...s.id].reduce((n, c) => (n * 31 + c.charCodeAt(0)) % 2000000000, 17) }
-async function syncNativeReminders() {
-  const nativePlugin = window.Capacitor?.Plugins?.LocalNotifications;
-  if (!nativePlugin) return;
-  try {
-    const notifications = data.supplements.map(s => ({ id: nativeNotificationId(s) }));
-    if (notifications.length) await nativePlugin.cancel({ notifications });
-    const scheduled = data.supplements.filter(s => s.enabled).map(s => { const [hour, minute] = s.time.split(':').map(Number); return { id: nativeNotificationId(s), title: `Time for ${s.name}`, body: s.dose || 'Your daily supplement', schedule: { on: { hour, minute }, repeats: true }, extra: { supplementId: s.id } } });
-    if (scheduled.length) await nativePlugin.schedule({ notifications: scheduled });
-  } catch (error) { console.warn('Unable to synchronize native reminders', error) }
-}
-function reminderCheck() { if (Notification.permission !== 'granted') return; let now = new Date(), key = todayKey(); data.supplements.filter(s => s.enabled && !status(s.id)).forEach(s => { let k = key + s.id; if (!notified[k] && Math.abs(now.getHours() * 60 + now.getMinutes() - minutes(s.time)) < 1) { new Notification('Time for ' + s.name, { body: s.dose || 'Your daily supplement' }); notified[k] = true } }) } setInterval(reminderCheck, 30000); render();
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+async function enableNotifications() { const plugin = window.Capacitor?.Plugins?.LocalNotifications; if (plugin) { const result = await plugin.requestPermissions(); $('#notificationButton').textContent = result.display === 'granted' ? 'Notifications enabled' : 'Notifications unavailable'; if (result.display === 'granted') syncNativeReminders(); return; } if (!('Notification' in window)) return; const result = await Notification.requestPermission(); $('#notificationButton').textContent = result === 'granted' ? 'Notifications enabled' : 'Notifications unavailable'; }
+function nativeNotificationId(supplement) { return supplement.notificationId || [...supplement.id].reduce((number, character) => (number * 31 + character.charCodeAt(0)) % 2000000000, 17); }
+async function syncNativeReminders() { const plugin = window.Capacitor?.Plugins?.LocalNotifications; if (!plugin) return; try { const notifications = data.supplements.map(supplement => ({ id: nativeNotificationId(supplement) })); if (notifications.length) await plugin.cancel({ notifications }); const scheduled = data.supplements.filter(supplement => supplement.enabled).map(supplement => { const [hour, minute] = supplement.time.split(':').map(Number); return { id: nativeNotificationId(supplement), title: `Time for ${supplement.name}`, body: supplement.dose || 'Your daily supplement', schedule: { on: { hour, minute }, repeats: true }, extra: { supplementId: supplement.id } }; }); if (scheduled.length) await plugin.schedule({ notifications: scheduled }); } catch (error) { console.warn('Unable to synchronize native reminders', error); } }
+function reminderCheck() { if (!('Notification' in window) || Notification.permission !== 'granted') return; const now = new Date(), key = localDateKey(); data.supplements.filter(supplement => supplement.enabled && !isTaken(supplement.id)).forEach(supplement => { const notificationKey = key + supplement.id; if (!notified[notificationKey] && Math.abs(now.getHours() * 60 + now.getMinutes() - minutes(supplement.time)) < 1) { new Notification(`Time for ${supplement.name}`, { body: supplement.dose || 'Your daily supplement' }); notified[notificationKey] = true; } }); }
+setInterval(reminderCheck, 30000); render(); if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
