@@ -13,6 +13,14 @@ function minutes(time) { const [hour, minute] = time.split(':').map(Number); ret
 function prettyTime(time) { return new Date(`2000-01-01T${time}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
 function palette(supplement) { return PALETTES[Number.isInteger(supplement.color) && PALETTES[supplement.color] ? supplement.color : 0]; }
 function isTaken(id, date = localDateKey()) { return data.history[date]?.includes(id) || false; }
+function doseState(supplement, date = localDateKey()) {
+  if (isTaken(supplement.id, date)) return 'taken';
+  const today = localDateKey();
+  if (date < today) return 'missed';
+  if (date > today) return 'upcoming';
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes() >= minutes(supplement.time) ? 'missed' : 'upcoming';
+}
 function save() { localStorage.setItem(storageKey, JSON.stringify(data)); render(); syncNativeReminders(); }
 function toggleDose(id, date = localDateKey()) { data.history[date] ??= []; data.history[date] = isTaken(id, date) ? data.history[date].filter(item => item !== id) : [...data.history[date], id]; save(); }
 function scheduleList() { return [...data.supplements].sort((a, b) => minutes(a.time) - minutes(b.time)); }
@@ -49,12 +57,16 @@ function render() {
 
 function renderHistory(list) {
   const dateInput = $('#historyDate'); dateInput.max = localDateKey(); dateInput.value = selectedHistoryDate;
-  const completed = list.filter(supplement => isTaken(supplement.id, selectedHistoryDate)).length;
-  const missed = list.length - completed;
-  $('#historySummary').textContent = list.length ? `${formatDateKey(selectedHistoryDate)} · ${completed} taken · ${missed} missed` : 'Add a supplement to start reviewing dose history.';
+  const completed = list.filter(supplement => doseState(supplement, selectedHistoryDate) === 'taken').length;
+  const missed = list.filter(supplement => doseState(supplement, selectedHistoryDate) === 'missed').length;
+  const upcoming = list.filter(supplement => doseState(supplement, selectedHistoryDate) === 'upcoming').length;
+  $('#historySummary').textContent = list.length ? `${formatDateKey(selectedHistoryDate)} · ${completed} taken · ${missed} missed${upcoming ? ` · ${upcoming} due later` : ''}` : 'Add a supplement to start reviewing dose history.';
   $('#historyList').innerHTML = list.map(supplement => {
-    const taken = isTaken(supplement.id, selectedHistoryDate), style = palette(supplement);
-    return `<article class="activity-card history-card"><div><strong>${escapeHtml(supplement.name)}</strong><br><span>${prettyTime(supplement.time)} · <b class="${taken ? 'status-taken' : 'status-missed'}">${taken ? 'Taken' : 'Missed'}</b></span></div><button class="history-check ${taken ? '' : 'missed'}" data-history-check="${supplement.id}">${taken ? 'Mark missed' : 'Mark taken'}</button></article>`;
+    const state = doseState(supplement, selectedHistoryDate);
+    const label = state === 'taken' ? 'Taken' : state === 'missed' ? 'Missed' : 'Due later';
+    const className = state === 'taken' ? 'status-taken' : state === 'missed' ? 'status-missed' : '';
+    const button = state === 'taken' ? 'Mark missed' : 'Mark taken';
+    return `<article class="activity-card history-card"><div><strong>${escapeHtml(supplement.name)}</strong><br><span>${prettyTime(supplement.time)} · <b class="${className}">${label}</b></span></div><button class="history-check ${state === 'taken' ? '' : 'missed'}" data-history-check="${supplement.id}">${button}</button></article>`;
   }).join('');
 }
 
@@ -79,9 +91,10 @@ $('#deleteSupplement').onclick = () => { const id = $('#editingId').value; data.
 ['quickAddButton', 'emptyAddButton', 'routineAddButton'].forEach(id => $('#' + id).onclick = () => openForm());
 $('#historyDate').onchange = event => { if (event.target.value && event.target.value <= localDateKey()) { selectedHistoryDate = event.target.value; render(); } };
 document.querySelectorAll('.tab').forEach(button => button.onclick = () => { document.querySelectorAll('.tab,.view').forEach(element => element.classList.remove('active')); button.classList.add('active'); $('#' + button.dataset.tab).classList.add('active'); });
-$('#settingsButton').onclick = () => $('#settingsDialog').showModal(); $('#notificationButton').onclick = enableNotifications;
+$('#settingsButton').onclick = async () => { await refreshNotificationStatus(); $('#settingsDialog').showModal(); }; $('#notificationButton').onclick = enableNotifications;
+async function refreshNotificationStatus() { const plugin = window.Capacitor?.Plugins?.LocalNotifications; let granted = false; try { granted = plugin ? (await plugin.checkPermissions()).display === 'granted' : ('Notification' in window && Notification.permission === 'granted'); } catch (error) { console.warn('Unable to check notification permissions', error); } $('#notificationButton').textContent = granted ? 'Notifications enabled' : 'Enable notifications'; }
 async function enableNotifications() { const plugin = window.Capacitor?.Plugins?.LocalNotifications; if (plugin) { const result = await plugin.requestPermissions(); $('#notificationButton').textContent = result.display === 'granted' ? 'Notifications enabled' : 'Notifications unavailable'; if (result.display === 'granted') syncNativeReminders(); return; } if (!('Notification' in window)) return; const result = await Notification.requestPermission(); $('#notificationButton').textContent = result === 'granted' ? 'Notifications enabled' : 'Notifications unavailable'; }
 function nativeNotificationId(supplement) { return supplement.notificationId || [...supplement.id].reduce((number, character) => (number * 31 + character.charCodeAt(0)) % 2000000000, 17); }
 async function syncNativeReminders() { const plugin = window.Capacitor?.Plugins?.LocalNotifications; if (!plugin) return; try { const notifications = data.supplements.map(supplement => ({ id: nativeNotificationId(supplement) })); if (notifications.length) await plugin.cancel({ notifications }); const scheduled = data.supplements.filter(supplement => supplement.enabled).map(supplement => { const [hour, minute] = supplement.time.split(':').map(Number); return { id: nativeNotificationId(supplement), title: `Time for ${supplement.name}`, body: supplement.dose || 'Your daily supplement', schedule: { on: { hour, minute }, repeats: true }, extra: { supplementId: supplement.id } }; }); if (scheduled.length) await plugin.schedule({ notifications: scheduled }); } catch (error) { console.warn('Unable to synchronize native reminders', error); } }
 function reminderCheck() { if (!('Notification' in window) || Notification.permission !== 'granted') return; const now = new Date(), key = localDateKey(); data.supplements.filter(supplement => supplement.enabled && !isTaken(supplement.id)).forEach(supplement => { const notificationKey = key + supplement.id; if (!notified[notificationKey] && Math.abs(now.getHours() * 60 + now.getMinutes() - minutes(supplement.time)) < 1) { new Notification(`Time for ${supplement.name}`, { body: supplement.dose || 'Your daily supplement' }); notified[notificationKey] = true; } }); }
-setInterval(reminderCheck, 30000); render(); if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+setInterval(reminderCheck, 30000); refreshNotificationStatus(); render(); if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
