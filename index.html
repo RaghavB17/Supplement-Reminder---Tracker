@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f8f8f5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Daily Dose" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>Daily Dose</title>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark">✦</span><span>daily dose</span></div>
+        <button class="icon-button" id="settingsButton" aria-label="Open settings">•••</button>
+      </header>
+
+      <section class="view active" id="todayView">
+        <div class="greeting-row">
+          <div><p class="eyebrow" id="todayLabel">TODAY</p><h1>Good morning<span class="period">.</span></h1></div>
+          <div class="progress-ring" id="progressRing"><span id="progressText">0/0</span></div>
+        </div>
+        <p class="subcopy" id="dailyMessage">Let’s make today a healthy one.</p>
+        <div class="section-heading"><h2>Your schedule</h2><button class="text-button" id="quickAddButton">+ Add</button></div>
+        <div class="dose-list" id="todayList"></div>
+        <div class="empty-state hidden" id="emptyToday"><div class="empty-icon">✦</div><h2>Your routine starts here</h2><p>Add a supplement and choose when you’d like to take it.</p><button class="primary-button" id="emptyAddButton">Add your first supplement</button></div>
+      </section>
+
+      <section class="view" id="insightsView">
+        <p class="eyebrow">YOUR PROGRESS</p><h1>Insights<span class="period">.</span></h1>
+        <p class="subcopy">A little consistency goes a long way.</p>
+        <div class="adherence-card"><p>This week</p><div><strong id="weekRate">0%</strong><span>adherence</span></div><div class="week-bars" id="weekBars"></div><p class="small-muted" id="weekSummary">Add a supplement to start tracking.</p></div>
+        <div class="section-heading compact"><h2>At a glance</h2></div>
+        <div class="stat-grid"><article><span class="stat-label">Taken today</span><strong id="takenStat">0</strong><span class="stat-detail">doses</span></article><article><span class="stat-label">Current streak</span><strong id="streakStat">0</strong><span class="stat-detail">days</span></article></div>
+        <div class="section-heading compact"><h2>Supplement activity</h2></div>
+        <div class="activity-list" id="activityList"></div>
+      </section>
+
+      <section class="view" id="routineView">
+        <div class="section-heading routine-title"><div><p class="eyebrow">YOUR ROUTINE</p><h1>Supplements<span class="period">.</span></h1></div><button class="add-circle" id="routineAddButton" aria-label="Add supplement">+</button></div>
+        <p class="subcopy">Manage your daily essentials.</p>
+        <div class="routine-list" id="routineList"></div>
+      </section>
+    </main>
+
+    <nav class="tabbar" aria-label="Main navigation">
+      <button class="tab active" data-tab="todayView"><span>◷</span>Today</button>
+      <button class="tab" data-tab="insightsView"><span>◔</span>Insights</button>
+      <button class="tab" data-tab="routineView"><span>□</span>Routine</button>
+    </nav>
+
+    <dialog id="supplementDialog">
+      <form method="dialog" id="supplementForm">
+        <div class="modal-header"><div><p class="eyebrow" id="formEyebrow">NEW REMINDER</p><h2 id="formTitle">Add supplement</h2></div><button value="cancel" class="close-button" aria-label="Close">×</button></div>
+        <label>Name<input id="supplementName" required maxlength="35" placeholder="e.g. Vitamin D3" /></label>
+        <div class="common-section"><span>Common supplements</span><div class="chips" id="commonChips"></div></div>
+        <div class="form-row"><label>Dosage<input id="supplementDose" maxlength="25" placeholder="e.g. 1,000 IU" /></label><label>Time<input id="supplementTime" type="time" required value="08:00" /></label></div>
+        <label class="color-label">Colour <span id="colorChoices" class="color-choices"></span></label>
+        <label class="switch-row">Daily reminder<input id="reminderEnabled" type="checkbox" checked /><span class="switch"></span></label>
+        <input type="hidden" id="editingId" />
+        <button class="primary-button full" value="default" id="saveSupplement">Save reminder</button>
+        <button class="danger-button hidden" type="button" id="deleteSupplement">Delete supplement</button>
+      </form>
+    </dialog>
+    <dialog id="settingsDialog"><form method="dialog"><div class="modal-header"><div><p class="eyebrow">REMINDERS</p><h2>Notification settings</h2></div><button value="cancel" class="close-button">×</button></div><p class="settings-copy">Enable notifications to receive reminders while Daily Dose is open. For reliable scheduled notifications when the app is closed, package this app as a native iPhone app.</p><button class="primary-button full" type="button" id="notificationButton">Enable notifications</button></form></dialog>
+    <script src="app.js"></script>
+  </body>
+</html>

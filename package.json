@@ -1,0 +1,20 @@
+{
+  "name": "daily-dose",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Daily supplement reminder and adherence tracker",
+  "scripts": {
+    "build": "mkdir -p www && cp index.html styles.css app.js manifest.webmanifest icon.svg sw.js www/",
+    "sync:ios": "npx cap sync ios",
+    "open:ios": "npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/ios": "^8.0.0",
+    "@capacitor/local-notifications": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0",
+    "typescript": "^7.0.2"
+  }
+}
