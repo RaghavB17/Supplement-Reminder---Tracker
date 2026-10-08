@@ -21,7 +21,7 @@
 
       <section class="view active" id="todayView">
         <div class="greeting-row">
-          <div><p class="eyebrow" id="todayLabel">TODAY</p><h1>Good morning<span class="period">.</span></h1></div>
+          <div><p class="eyebrow" id="todayLabel">TODAY</p><h1 id="greeting">Good morning<span class="period">.</span></h1></div>
           <div class="progress-ring" id="progressRing"><span id="progressText">0/0</span></div>
         </div>
         <p class="subcopy" id="dailyMessage">Let’s make today a healthy one.</p>
@@ -38,6 +38,10 @@
         <div class="stat-grid"><article><span class="stat-label">Taken today</span><strong id="takenStat">0</strong><span class="stat-detail">doses</span></article><article><span class="stat-label">Current streak</span><strong id="streakStat">0</strong><span class="stat-detail">days</span></article></div>
         <div class="section-heading compact"><h2>Supplement activity</h2></div>
         <div class="activity-list" id="activityList"></div>
+        <div class="section-heading compact history-heading"><div><p class="eyebrow">DOSE HISTORY</p><h2>Review a day</h2></div></div>
+        <div class="history-picker" style="position:relative;grid-template-columns:1fr 1fr"><span class="history-date-label" style="font-size:13px;font-weight:700;align-self:center">Choose date</span><span id="historyDateDisplay" style="height:42px;display:flex;align-items:center;justify-content:center;border:1px solid #d6d9d2;border-radius:10px;background:#fcfcfa;font-size:15px;white-space:nowrap">Select date</span><input id="historyDate" type="date" aria-label="Choose date" style="position:absolute;left:50%;right:13px;top:11px;width:calc(50% - 13px);height:42px;opacity:0;cursor:pointer" /></div>
+        <p class="history-summary" id="historySummary"></p>
+        <div class="activity-list" id="historyList"></div>
       </section>
 
       <section class="view" id="routineView">
@@ -66,7 +70,7 @@
         <button class="danger-button hidden" type="button" id="deleteSupplement">Delete supplement</button>
       </form>
     </dialog>
-    <dialog id="settingsDialog"><form method="dialog"><div class="modal-header"><div><p class="eyebrow">REMINDERS</p><h2>Notification settings</h2></div><button value="cancel" class="close-button">×</button></div><p class="settings-copy">Enable notifications to receive reminders while Daily Dose is open. For reliable scheduled notifications when the app is closed, package this app as a native iPhone app.</p><button class="primary-button full" type="button" id="notificationButton">Enable notifications</button></form></dialog>
+    <dialog id="settingsDialog"><form method="dialog"><div class="modal-header"><div><p class="eyebrow">REMINDERS</p><h2>Notification settings</h2></div><button value="cancel" class="close-button">×</button></div><p class="settings-copy">Daily Dose will remind you at each scheduled time. You can change notification permissions at any time in your iPhone settings.</p><button class="primary-button full" type="button" id="notificationButton">Enable notifications</button></form></dialog>
     <script src="app.js"></script>
   </body>
 </html>
