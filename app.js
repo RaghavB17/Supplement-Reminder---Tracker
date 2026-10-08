@@ -57,6 +57,7 @@ function render() {
 
 function renderHistory(list) {
   const dateInput = $('#historyDate'); dateInput.max = localDateKey(); dateInput.value = selectedHistoryDate;
+  $('#historyDateDisplay').textContent = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${selectedHistoryDate}T12:00:00`));
   const completed = list.filter(supplement => doseState(supplement, selectedHistoryDate) === 'taken').length;
   const missed = list.filter(supplement => doseState(supplement, selectedHistoryDate) === 'missed').length;
   const upcoming = list.filter(supplement => doseState(supplement, selectedHistoryDate) === 'upcoming').length;

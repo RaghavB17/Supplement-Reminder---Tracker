@@ -20,14 +20,14 @@
                                     <constraint firstAttribute="height" constant="144" id="SplashLogoHeight"/>
                                 </constraints>
                             </imageView>
-                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" text="Daily Dose" textAlignment="center" lineBreakMode="tailTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="SplashTitle">
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" text="daily dose" textAlignment="center" lineBreakMode="tailTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="SplashTitle">
                                 <rect key="frame" x="0.0" y="480" width="390" height="34"/>
-                                <fontDescription key="fontDescription" type="system" weight="semibold" pointSize="28"/>
+                                <fontDescription key="fontDescription" name="Georgia" family="Georgia" pointSize="28"/>
                                 <color key="textColor" red="0.1254901961" green="0.137254902" blue="0.1294117647" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                                 <nil key="highlightedColor"/>
                             </label>
                         </subviews>
-                        <color key="backgroundColor" red="0.9725490196" green="0.9725490196" blue="0.9607843137" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <color key="backgroundColor" red="0.9960784314" green="0.9803921569" blue="0.9333333333" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
                             <constraint firstItem="SplashLogoView" firstAttribute="centerX" secondItem="LaunchView" secondAttribute="centerX" id="LogoCenterX"/>
                             <constraint firstItem="SplashLogoView" firstAttribute="centerY" secondItem="LaunchView" secondAttribute="centerY" constant="-36" id="LogoCenterY"/>
@@ -43,6 +43,6 @@
         </scene>
     </scenes>
     <resources>
-        <image name="SplashLogo" width="341.33333333333331" height="341.33333333333331"/>
+        <image name="SplashLogo" width="418" height="418"/>
     </resources>
 </document>

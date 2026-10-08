@@ -39,7 +39,7 @@
         <div class="section-heading compact"><h2>Supplement activity</h2></div>
         <div class="activity-list" id="activityList"></div>
         <div class="section-heading compact history-heading"><div><p class="eyebrow">DOSE HISTORY</p><h2>Review a day</h2></div></div>
-        <div class="history-picker" style="grid-template-columns:1fr"><label for="historyDate">Choose date</label><input id="historyDate" type="date" style="min-width:0" /></div>
+        <div class="history-picker" style="position:relative;grid-template-columns:1fr 1fr"><span class="history-date-label" style="font-size:13px;font-weight:700;align-self:center">Choose date</span><span id="historyDateDisplay" style="height:42px;display:flex;align-items:center;justify-content:center;border:1px solid #d6d9d2;border-radius:10px;background:#fcfcfa;font-size:15px;white-space:nowrap">Select date</span><input id="historyDate" type="date" aria-label="Choose date" style="position:absolute;left:50%;right:13px;top:11px;width:calc(50% - 13px);height:42px;opacity:0;cursor:pointer" /></div>
         <p class="history-summary" id="historySummary"></p>
         <div class="activity-list" id="historyList"></div>
       </section>
